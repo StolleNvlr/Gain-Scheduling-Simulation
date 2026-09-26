@@ -2,6 +2,7 @@ from coppeliasim_zmqremoteapi_client import RemoteAPIClient
 import math as m
 import controle_iara
 import random
+import matplotlib.pyplot as plt
 client = RemoteAPIClient()
 sim = client.require('sim')
 tempo_controle, resposta_controle = controle_iara.dinamica()
@@ -21,7 +22,7 @@ nomes = ['Planta', 'Planta_2', 'Planta_3', 'Planta_4', 'Planta_5', 'Planta_6', '
 barco = sim.getObject('/iara')
 
 client.setStepping(True)
-sim.setFloatParam(sim.floatparam_simulation_time_step, 1.0)
+sim.setFloatParam(sim.floatparam_simulation_time_step, 0.05)
 '''
 Path Planning em RRT
 '''
@@ -35,7 +36,7 @@ def input_de_ponto():
 def posicao(barco_handle):
     posicao_inicial = sim.getObjectPosition(barco_handle, sim.handle_world)
     return posicao_inicial
-def obstaculos_cena(nome_obstaculos, margem = 0.5):
+def obstaculos_cena(nome_obstaculos, margem = 0.15):
     RAIO_DA_PLANTA = 0.1
     lista_obstaculos = []
     for nome in nome_obstaculos:
@@ -130,19 +131,65 @@ def RRT(posicao_inicial, objetivo, obstaculos):
             if distancia(q_new, objetivo) <= PASSO and not colide_segmento(q_new, objetivo, obstaculos):
                 arvore.append({"ponto": objetivo, "pai": indice_new})
                 print(f"Caminho RRT encontrado com {len(arvore)} nós.")
-                return reconstruir_caminho(arvore, len(arvore) - 1)
+                return reconstruir_caminho(arvore, len(arvore) - 1), arvore
 
     print("RRT não encontrou caminho.")
-    return None
+    return None, arvore
+def visualizar_rrt(arvore, caminho, obstaculos, inicio, objetivo):
+    plt.figure(figsize=(8, 8))
     
+    # 1. Desenha o mapa base (obstáculos e pontos)
+    for ox, oy, raio in obstaculos:
+        circulo = plt.Circle((ox, oy), raio, color='black', alpha=0.3)
+        plt.gca().add_patch(circulo)
+        
+    plt.plot(inicio[0], inicio[1], 'go', markersize=8, label='Início')
+    plt.plot(objetivo[0], objetivo[1], 'bo', markersize=8, label='Objetivo')
+    
+    plt.title('Procurando caminho (Construindo Árvore RRT...)')
+    plt.xlabel('Eixo X (metros)')
+    plt.ylabel('Eixo Y (metros)')
+    plt.grid(True)
+    plt.axis('equal')
+    
+    # ==========================================
+    # Renderização da árvore de caminhos testados frame a frame
+    # ==========================================
+    for no in arvore:
+        if no["pai"] is not None:
+            ponto_atual = no["ponto"]
+            ponto_pai = arvore[no["pai"]]["ponto"]
+            
+            # Desenha a ramificação atual
+            plt.plot([ponto_pai[0], ponto_atual[0]], [ponto_pai[1], ponto_atual[1]], 
+                     color='cyan', alpha=0.5, linewidth=1)
+            
+            # Faz uma pausa de 1 milissegundo para atualizar a tela frame a frame
+            plt.pause(0.01) 
+            
+    # ==========================================
+    
+    # 3. Quando a árvore termina de crescer, traça a rota vermelha por cima
+    if caminho:
+        x_caminho = [p[0] for p in caminho]
+        y_caminho = [p[1] for p in caminho]
+        plt.plot(x_caminho, y_caminho, color='red', linewidth=2, label='Caminho Otimizado')
+        
+        plt.title(f'Rota encontrada! ({len(arvore)} nós testados)')
+        plt.legend()
+        plt.pause(0.1) # Atualiza a tela pela última vez
+
+    print("Animação concluída! Feche a janela do gráfico para iniciar a simulação no CoppeliaSim.")
+    plt.show() # Mantém a janela aberta até você fechar no 'X'
 objetivo = input_de_ponto()
 posicao_inicial_3d = posicao(barco)
 posicao_inicial = (posicao_inicial_3d[0], posicao_inicial_3d[1])
 obstaculos = obstaculos_cena(nomes)
 print('começando a calcular a rota via função RRT')
-caminho = RRT(posicao_inicial, objetivo, obstaculos)  
+caminho, arvore = RRT(posicao_inicial, objetivo, obstaculos)  
 
 if caminho:
+    visualizar_rrt(arvore, caminho, obstaculos, posicao_inicial, objetivo)
     # 4.3 Configura o modo síncrono e Inicia a Simulação
     client.setStepping(True)
     sim.setFloatParam(sim.floatparam_simulation_time_step, 0.05)
