@@ -1,93 +1,60 @@
 # Gain-Scheduling-Simulation
-Simulação no Coppelia Sim de um algoritmo de Gain Scheduling
+Simulação no CoppeliaSim de um barco autônomo integrando planejamento espacial ótimo (RRT*) e controle adaptativo (Gain Scheduling).
 
-# Equações e Funções utilizadas no _runner.py_
+## Como Utilizar o Código
 
-## 1.Função geométrica de mapeamento:
-$$ d = \sqrt{(x_b - x_a)^2 + (y_b-y_a)^2}$$ 
+1. **Prepare o CoppeliaSim:** Abra a cena com o modelo `IARA` na origem e os obstáculos configurados. **Não dê play na simulação**.
+2. **Execute o Roteamento:** No terminal, rode o arquivo principal:
+   ```bash
+   python runner.py
+   ```
+3. **Insira os Waypoints:** Quando solicitado, insira os pontos em escala separados por ponto-e-vírgula (`;`). Para reproduzir o artigo, digite:
+   `2.0, 1.0; 3.0, -0.7; 4.0, -0.7`
+4. **Validação Visual:** Feche as janelas dos gráficos gerados pelo Matplotlib para liberar o script. O barco iniciará o trajeto autonomamente no simulador.
+5. **Geração de Gráficos (Opcional):** Para gerar os gráficos da resposta ao degrau da planta (Figuras 3, 4 e 5), rode isoladamente:
+   ```bash
+   python controle_iara.py
+   ```
 
-esta equação do teorema de Pitágoras diz o quão longe o objeto, no caso o barco chamado IARA, está distante do seu objetivo final 
+---
 
+## 1. Planejamento Espacial (`runner.py`)
 
-## 2. Função _input_de_ponto( )_
+### 1.1 Modelagem de Obstáculos (AABB)
+O mapeamento por círculos foi substituído por **Caixas Delimitadoras (Bounding Boxes)** para evitar o "efeito túnel". O ponto $(x,y)$ é invalidado se cair dentro da área inflada da rocha:
+$$x_{min} \leq x \leq x_{max} \quad \text{e} \quad y_{min} \leq y \leq y_{max}$$
 
-Essa função recebe uma string que é captada pelo input do usuário no terminal, a string enviada no formato "x,y", por exemplo "10,10", e utilizando o "." como separador de decimais nos números float.
+### 1.2 RRT* e Otimização KD-Tree
+O algoritmo foi evoluído para **RRT***. Em vez de busca linear iterativa, utiliza a estrutura `scipy.spatial.KDTree` para encontrar vizinhos em raio ótimo em tempo logarítmico $\mathcal{O}(\log N)$, permitindo a reconexão contínua (*rewiring*) para reduzir o custo do percurso.
 
-## 3. Função _posicao(barco_handle)_
-
-Função de telemetria. Consulta a API do CoppeliaSim para extrair a coordenada espacial absoluta $[X, Y, Z]$ do centro de massa do modelo do barco em relação ao referencial do mundo simulado.
-
-## 4. Função _obstaculos_cena(nome_obstaculos, margem)_
-
-
-Realiza o mapeamento do cenário. Varre o CoppeliaSim buscando as posições absolutas das plantas a partir dos seus determinados nomes na cena e cria "zonas de exclusão" circulares. Aplicamos o conceito de Espaço de Configuração (C-Space). Como o barco é tratado como uma partícula pontual no codigo de controle _controle_iara.py_, adicionei aos obstáculos uma margem de segurança ao raio físico: 
-
-$$R_{total} = R_{planta} + \text{margem}$$
-
-Isso nos garante que se a "partícula" passar muito próximo no círculo matemático de $R_{total}$, o casco real do barco não encostará no obstaculo.
-
-## 5. Algoritmo RRT (Planejamento de Trajetória) -> _ponto_aleatorio()_ 
-
-Amostra o espaço 2D utilizando uma distribuição de probabilidade uniforme contínua. Para os limites configurados, ele sorteia variáveis independentes:
-
-$$x \sim U(X_{MIN}, X_{MAX})$$
-
-$$y \sim U(Y_{MIN}, Y_{MAX})$$
-
-## 6. _ponto_valido(p, obstaculos)_
-
-Resolve uma Inequação de Círculo para garantir segurança. Um ponto $(x,y)$ só é válido se estiver dentro dos limites do mapa e fora de todas as zonas de exclusão. A condição matemática para rejeitar o ponto se ele estiver dentro do obstáculo $i$ é:
-
-$$(x - x_i)^2 + (y - y_i)^2 \leq R_i^2$$
-
-## 7. _colide_segmento(a, b, obstaculos, resolucao)_
-
-Resolve o problema de interceptação geométrica discretizando uma reta. Aplica a Equação Paramétrica da Reta para criar "passos" entre o ponto $A$ e o ponto $B$:
-
+### 1.3 Suavização de Rota (Path Smoothing)
+O caminho final bruto do RRT* passa por um filtro de *Line of Sight* reverso. O algoritmo traça retas projetadas ignorando nós intermediários redundantes caso não haja intersecção com os obstáculos:
 $$P(t) = A + t(B - A)$$
+*(Validação feita discretamente a uma alta resolução de `0.03m` por passo).*
 
-Onde $t$ varia de $0$ a $1$. O código avança a variável $t$ em pequenas frações de passo (resolucao) e checa se algum desses pontos $P(t)$ intermediários cai dentro da inequação de um obstáculo. Se cair, a linha reta cruza uma planta.
+---
 
-## 7. _no_mais_proximo(arvore, ponto)_ 
+## 2. Controle Adaptativo (`controle_iara.py`)
 
-Realiza uma busca por vizinho mais próximo (Nearest Neighbor) no espaço vetorial. Varre todos os nós já criados na árvore e retorna o índice daquele que minimiza a distância Euclidiana até o novo ponto sorteado:
+### 2.1 Gain Scheduling
+A planta PD é adaptada dinamicamente conforme a velocidade exigida pelo trecho ($1.0 u_n$, $0.8 u_n$, $0.1 u_n$). Para manter um amortecimento constante sem sobressinal ($\xi = 2.4$), o ganho Proporcional ($K$) é escalonado utilizando a proporção $\eta = u / u_n$:
+$$K = \frac{K_{nom}}{\eta^2}$$
 
-$$\text{Índice} = \arg\min_{i \in \text{arvore}} \Vert{} P_i - P_{novo} \Vert{}_2$$
+### 2.2 Equações a Diferenças (Filtro Digital)
+As funções de transferência são discretizadas a $1s$ (Zero-Order Hold). A classe `ControladorIara` atua como filtro retendo valores passados ($k-1, k-2$) para suavizar a entrada em degrau da posição e gerar o ângulo do leme ($s_{ang}$) final:
+$$s_{ang}[k] = \alpha_1 s_{ang}[k-1] + \alpha_2 s_{ang}[k-2] + \beta_1 i_{ang}[k-1] + \beta_2 i_{ang}[k-2]$$
 
-## 8. _steer(origem, destino, passo)_ 
+---
 
-Limita o crescimento da árvore. Se o ponto sorteado estiver muito longe da origem, esta função satura o vetor de deslocamento. Ela calcula o vetor direção, normaliza para criar um vetor unitário, e o multiplica pelo tamanho máximo permitido (passo). Seja o vetor direção $\vec{v} = (x_{destino} - x_{origem}, y_{destino} - y_{origem})$
+## 3. Cinemática no Simulador (`runner.py`)
 
-Distância (módulo): $d = \Vert{} \vec{v} \Vert{}$
+Em vez de interpolação linear, a movimentação do barco ocorre através de **cálculo cinemático em tempo real** a cada passo $\Delta t = 0.05s$ de simulação.
 
-Componentes normalizados: $dx = \frac{v_x}{d}$ e $dy = \frac{v_y}{d}$
+### 3.1 Ângulo de Referência
+O erro angular ($i_{ang}$) que alimenta o controlador é calculado a cada frame pela função arco-tangente entre o destino e o barco:
+$$i_{ang} = \text{atan2}(y_{fim} - y_{atual}, x_{fim} - x_{atual})$$
 
-Novo ponto gerado: $P_{novo} = P_{origem} + \text{passo} \cdot (dx, dy)$
-
-## 9. _reconstruir_caminho(arvore, indice_final)_
-
-Executa um Backtracking clássico em grafos. Começa no nó que atingiu o objetivo e segue a lista de ponteiros pai iterativamente até chegar ao nó raiz (pai: None). Depois inverte a lista resultante para entregar o caminho da origem ao destino.
-
-## 10. _RRT(posicao_inicial, objetivo, obstaculos)_ 
-
-O núcleo do espaço de estados. A cada iteração: Aplica o GOAL_BIAS: Com 10% de probabilidade impõe o destino como ponto aleatório (direcionando o crescimento) ou sorteia no espaço com 90%. Acha o nó mais próximo da árvore. Cria um novo ponto usando steer. Valida as restrições geométricas com ponto_valido e colide_segmento. Se o novo ponto se conectar sem colisões ao destino, encerra a busca. Visualização e Execução Cinemática
-
-## 11. _visualizar_rrt(...)_ 
-
-Módulo de renderização gráfica. Usa os vetores de posições guardados nos dicionários da árvore para desenhar retas sobrepostas no Matplotlib usando funções de desenho de formas (Patches) e plotagem linear, com plt.pause() travando a thread para renderizar frame a frame.
-
-## 12. Matemática de Atuação no Loop Principal (Execução ponto a ponto) 
-
-dentro do laço _for i in range(len(caminho) - 1):_, duas operações físicas cruciais ocorrem:
-
-Cálculo de Rotação (Yaw):
-
-Para rotacionar o barco no eixo Z apontando seu nariz para o próximo waypoint, utiliza-se a função trigonométrica arco-tangente2, que resolve a ambiguidade de quadrantes dividindo $\Delta y$ por $\Delta x$.
-
-$$\theta_{yaw} = \text{atan2}(y_{fim} - y_{inicio}, x_{fim} - x_{inicio}) + \pi$$
-
-(A constante $\pi$ em radianos corresponde a 180°, usada para inverter o eixo referencial do modelo 3D).
-
-Interpolação de Movimento Controlado:
-
-Em vez de teleportar o barco a velocidades constantes, a posição instantânea é modulada pela resposta transitória da sua função de transferência discreta gerada pela biblioteca control. O fator é a amplitude da resposta ao degrau no instante $t$ (variando de 0 a 1).A equação é uma interpolação linear parametrizada não pelo tempo real, mas pela resposta do controlador $C(t)$:
+### 3.2 Integração do Movimento Uniforme
+O barco gira seu nariz fisicamente para o ângulo ditado pelo controlador ($s_{ang}$) e avança no espaço 3D usando as componentes vetoriais da sua velocidade parametrizada:
+$$X_{novo} = X_{atual} + (v \cdot \cos(s_{ang}) \cdot \Delta t)$$
+$$Y_{novo} = Y_{atual} + (v \cdot \sin(s_{ang}) \cdot \Delta t)$$
