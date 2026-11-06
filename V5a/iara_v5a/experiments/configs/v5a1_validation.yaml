@@ -1,0 +1,17 @@
+phase: validation
+n_seeds: 2
+seeds: [20, 21]
+scenarios: [open_water, single_block]
+dt: 0.05
+substeps: 1
+smoothing: true
+record_trajectory: false
+conditions:
+  - name: pp
+    planner: astar
+  - name: pd
+    planner: astar
+  - name: gs
+    planner: astar
+  - name: mrac
+    planner: astar
