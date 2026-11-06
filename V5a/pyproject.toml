@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "iara-v4"
+version = "4.0.0"
+description = "Reproducible simulation and validation stack for the IARA USV"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy>=1.26,<3",
+  "scipy>=1.11,<2",
+  "PyYAML>=6.0,<7",
+  "matplotlib>=3.8,<4",
+]
+
+[project.scripts]
+iara-v4-audit = "scripts.run_audit:main"
+iara-v4-experiment = "scripts.run_experiment:main"
+iara-v4-validation = "scripts.run_validation:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests", "iara_v5a/tests"]
+addopts = "-ra"
+
+[tool.setuptools.packages.find]
+where = ["."]
+
