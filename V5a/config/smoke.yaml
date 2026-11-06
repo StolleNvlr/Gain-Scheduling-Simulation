@@ -1,0 +1,65 @@
+# Fast smoke protocol for development only.  These results are never reported.
+phase: tune
+n_seeds: 2
+
+scenarios:
+  - coppelia_default
+  - hidden_block
+
+dt: 0.05
+substeps: 4
+smoothing: true
+smooth_ds: 0.03
+max_path_curvature: 4.0
+record_trajectory: true
+record_telemetry: false
+
+sensor:
+  latency_steps: 2
+
+conditions:
+  - name: pp
+    planner: rrt_star
+    planner_options:
+      max_iterations: 600
+      step_size: 0.18
+      goal_bias: 0.10
+
+  - name: gs
+    planner: rrt_star
+    planner_options:
+      max_iterations: 600
+      step_size: 0.18
+      goal_bias: 0.10
+
+  - name: mrac
+    planner: rrt_star
+    planner_options:
+      max_iterations: 600
+      step_size: 0.18
+      goal_bias: 0.10
+    controller_options:
+      omega_n: 5.5
+
+  - name: mrac_lowgain
+    planner: rrt_star
+    planner_options:
+      max_iterations: 600
+      step_size: 0.18
+      goal_bias: 0.10
+    controller_options:
+      omega_n: 5.5
+
+  - name: pp_vfh
+    planner: rrt_star
+    planner_options:
+      max_iterations: 600
+      step_size: 0.18
+      goal_bias: 0.10
+
+  - name: gs_vfh
+    planner: rrt_star
+    planner_options:
+      max_iterations: 600
+      step_size: 0.18
+      goal_bias: 0.10

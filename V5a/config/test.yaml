@@ -1,0 +1,9 @@
+phase: test
+n_seeds: 1
+scenarios: [open_water]
+conditions:
+  - name: pp
+  - name: gs
+  - name: mrac_lowgain
+record_trajectory: false
+record_telemetry: false

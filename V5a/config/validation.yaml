@@ -1,0 +1,9 @@
+phase: validation
+n_seeds: 1
+scenarios: [open_water]
+conditions:
+  - name: gs
+  - name: mrac_lowgain
+record_trajectory: true
+record_telemetry: true
+

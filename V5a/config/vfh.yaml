@@ -1,0 +1,65 @@
+# Focused VFH+ ablation on mapped and unmapped obstacles.
+#
+# In `hidden_block` and `coppelia_hidden` the global planner does not see the
+# hidden obstacle.  The plant, clearance metric and range sensor do.  The
+# comparison therefore isolates reactive avoidance from a different global map.
+phase: validation
+n_seeds: 20
+
+scenarios:
+  - coppelia_default
+  - single_block
+  - hidden_block
+  - coppelia_hidden
+
+dt: 0.05
+substeps: 4
+smoothing: true
+smooth_ds: 0.02
+max_path_curvature: 4.0
+record_trajectory: false
+record_telemetry: false
+
+sensor:
+  latency_steps: 2
+
+conditions:
+  - name: pp
+    planner: rrt_star
+    planner_options: &rrt
+      max_iterations: 2500
+      step_size: 0.15
+      goal_bias: 0.10
+      post_goal_iterations: 300
+    controller_options:
+      v_max: 0.45
+
+  - name: pp_vfh
+    planner: rrt_star
+    planner_options: *rrt
+    controller_options:
+      v_max: 0.45
+    local_planner_options: &vfh
+      n_sectors: 72
+      max_range: 3.0
+      slow_distance: 1.00
+      speed_cone_distance: 0.80
+      slow_cone_half_angle: 1.05
+      min_speed_factor: 0.25
+
+  - name: gs
+    planner: rrt_star
+    planner_options: *rrt
+    controller_options:
+      omega_n: 2.0
+      zeta: 1.0
+      derivative_filter_tau: 0.10
+
+  - name: gs_vfh
+    planner: rrt_star
+    planner_options: *rrt
+    controller_options:
+      omega_n: 2.0
+      zeta: 1.0
+      derivative_filter_tau: 0.10
+    local_planner_options: *vfh

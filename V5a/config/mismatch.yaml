@@ -1,0 +1,73 @@
+# Focused model-mismatch ablation.
+#
+# The plant always uses the nominal V4 parameters.  The `*_mismatch`
+# conditions give the controller a biased internal yaw model
+# (a_n +30%, b_0 -40%, b_n -40%).  This is a declared modelling hypothesis,
+# not an identified IARA parameter set.  The pairing is exact: every condition
+# sees the same scenario, seed, disturbance stream and global plan.
+phase: validation
+n_seeds: 20
+
+scenarios:
+  - coppelia_default
+  - offset_goal
+  - single_block
+  - narrow_passage
+
+dt: 0.05
+substeps: 4
+smoothing: true
+smooth_ds: 0.02
+max_path_curvature: 4.0
+record_trajectory: false
+record_telemetry: false
+
+sensor:
+  latency_steps: 2
+
+conditions:
+  - name: gs
+    planner: rrt_star
+    planner_options: &rrt
+      max_iterations: 2500
+      step_size: 0.15
+      goal_bias: 0.10
+      post_goal_iterations: 300
+    controller_options:
+      omega_n: 2.0
+      zeta: 1.0
+      derivative_filter_tau: 0.10
+
+  - name: gs_mismatch
+    planner: rrt_star
+    planner_options: *rrt
+    controller_options:
+      omega_n: 2.0
+      zeta: 1.0
+      derivative_filter_tau: 0.10
+
+  - name: mrac
+    planner: rrt_star
+    planner_options: *rrt
+    controller_options: &mrac
+      omega_n: 5.5
+      zeta: 1.0
+      gamma_psi: 120.0
+      gamma_r: 60.0
+      gamma_ref: 120.0
+      sigma: 1.0e-5
+
+  - name: mrac_mismatch
+    planner: rrt_star
+    planner_options: *rrt
+    controller_options: *mrac
+
+  - name: mrac_fixed
+    planner: rrt_star
+    planner_options: *rrt
+    controller_options: *mrac
+
+  - name: mrac_fixed_mismatch
+    planner: rrt_star
+    planner_options: *rrt
+    controller_options: *mrac

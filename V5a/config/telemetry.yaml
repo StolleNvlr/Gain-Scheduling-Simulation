@@ -1,0 +1,59 @@
+# Paired telemetry protocol used only for adaptation figures.
+# It uses validation seeds and the same scenario/plant configuration as the
+# confirmatory run; the reduced scenario set keeps the JSONL artifact small.
+phase: validation
+n_seeds: 2
+
+scenarios:
+  - coppelia_default
+  - u_trap
+
+dt: 0.05
+substeps: 4
+smoothing: true
+smooth_ds: 0.02
+max_path_curvature: 4.0
+record_trajectory: true
+record_telemetry: true
+
+sensor:
+  latency_steps: 2
+
+conditions:
+  - name: gs
+    planner: rrt_star
+    planner_options:
+      max_iterations: 2500
+      step_size: 0.15
+      goal_bias: 0.10
+      post_goal_iterations: 300
+
+  - name: mrac
+    planner: rrt_star
+    planner_options:
+      max_iterations: 2500
+      step_size: 0.15
+      goal_bias: 0.10
+      post_goal_iterations: 300
+    controller_options:
+      omega_n: 5.5
+      zeta: 1.0
+      gamma_psi: 120.0
+      gamma_r: 60.0
+      gamma_ref: 120.0
+      sigma: 1.0e-5
+
+  - name: mrac_lowgain
+    planner: rrt_star
+    planner_options:
+      max_iterations: 2500
+      step_size: 0.15
+      goal_bias: 0.10
+      post_goal_iterations: 300
+    controller_options:
+      omega_n: 5.5
+      zeta: 1.0
+      gamma_psi: 120.0
+      gamma_r: 60.0
+      gamma_ref: 120.0
+      sigma: 1.0e-5

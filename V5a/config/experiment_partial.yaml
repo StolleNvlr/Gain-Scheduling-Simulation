@@ -1,0 +1,102 @@
+# Partial validation for figures shown to the advisor.
+# 4 controllers x 6 scenarios x 5 seeds = 120 episodes.
+# Use scripts/generate_figures.py after this run.
+# This is NOT the frozen test protocol; use config/experiment_test.yaml
+# for the final benchmark.
+
+phase: validation
+n_seeds: 5
+
+scenarios:
+  - open_water
+  - coppelia_default
+  - single_block
+  - slalom
+  - hidden_block
+  - coppelia_hidden
+
+dt: 0.05
+substeps: 4
+smoothing: true
+smooth_ds: 0.02
+max_path_curvature: 4.0
+record_trajectory: false
+record_telemetry: false
+
+sensor:
+  position_std: 0.004
+  heading_std: 0.004
+  surge_std: 0.008
+  sway_std: 0.004
+  yaw_rate_std: 0.004
+  latency_steps: 2
+  dropout_probability: 0.0
+
+disturbance:
+  enabled: true
+  current_speed: 0.018
+  current_direction: 0.35
+  wind_force: 0.10
+  wind_direction: -0.25
+  wind_frequency: 0.13
+  wave_yaw_amplitude: 0.0025
+  wave_frequency: 0.27
+  gust_std: 0.02
+  gust_time_constant: 1.2
+
+vehicle:
+  m_u: 6.0
+  m_v: 6.0
+  m_r: 0.10
+  a_n: 1.6
+  b_0: 0.8
+  b_n: 3.0
+  u_nominal: 1.0
+  u_min_effective: 0.02
+  d_u_linear: 4.0
+  d_u_quadratic: 2.0
+  d_v_linear: 12.0
+  d_v_quadratic: 4.0
+  d_r_quadratic: 0.02
+  rudder_max: 0.65
+
+conditions:
+  - name: pp
+    planner: rrt_star
+    planner_options: &rrt
+      max_iterations: 2500
+      step_size: 0.15
+      goal_bias: 0.10
+      post_goal_iterations: 300
+    controller_options:
+      v_max: 0.45
+
+  - name: gs
+    planner: rrt_star
+    planner_options: *rrt
+    controller_options:
+      omega_n: 2.0
+      zeta: 1.0
+      derivative_filter_tau: 0.10
+
+  - name: mrac
+    planner: rrt_star
+    planner_options: *rrt
+    controller_options:
+      omega_n: 5.5
+      zeta: 1.0
+      gamma_psi: 120.0
+      gamma_r: 60.0
+      gamma_ref: 120.0
+      sigma: 1.0e-5
+
+  - name: mrac_lowgain
+    planner: rrt_star
+    planner_options: *rrt
+    controller_options:
+      omega_n: 5.5
+      zeta: 1.0
+      gamma_psi: 120.0
+      gamma_r: 60.0
+      gamma_ref: 120.0
+      sigma: 1.0e-5
