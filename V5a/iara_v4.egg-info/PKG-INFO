@@ -1,0 +1,11 @@
+Metadata-Version: 2.4
+Name: iara-v4
+Version: 4.0.0
+Summary: Reproducible simulation and validation stack for the IARA USV
+Requires-Python: >=3.10
+License-File: LICENSE
+Requires-Dist: numpy<3,>=1.26
+Requires-Dist: scipy<2,>=1.11
+Requires-Dist: PyYAML<7,>=6.0
+Requires-Dist: matplotlib<4,>=3.8
+Dynamic: license-file

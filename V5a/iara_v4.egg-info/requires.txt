@@ -1,0 +1,4 @@
+numpy<3,>=1.26
+scipy<2,>=1.11
+PyYAML<7,>=6.0
+matplotlib<4,>=3.8

@@ -1,0 +1,4 @@
+[console_scripts]
+iara-v4-audit = scripts.run_audit:main
+iara-v4-experiment = scripts.run_experiment:main
+iara-v4-validation = scripts.run_validation:main
